@@ -1,6 +1,6 @@
-package com.roles.usermanagement.modulo2.alerta;
+package com.roles.usermanagement.modules.alerta;
 
-import com.roles.usermanagement.modulo2.bus.Bus;
+import com.roles.usermanagement.modules.bus.Bus;
 import com.roles.usermanagement.modules.ruta.Ruta;
 import com.roles.usermanagement.modules.estacion.Estacion;
 import jakarta.persistence.*;

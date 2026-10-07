@@ -1,4 +1,4 @@
-package com.roles.usermanagement.modulo2.bus;
+package com.roles.usermanagement.modules.bus;
 
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;

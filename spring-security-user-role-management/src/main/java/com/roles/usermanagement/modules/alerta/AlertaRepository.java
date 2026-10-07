@@ -1,4 +1,4 @@
-package com.roles.usermanagement.modulo2.alerta;
+package com.roles.usermanagement.modules.alerta;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -20,7 +20,7 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
      * hacia buses, rutas y estaciones, mapeado directamente al DTO AlertaDetalleResponse.
      */
     @Query("""
-        SELECT new com.roles.usermanagement.modulo2.alerta.AlertaDetalleResponse(
+        SELECT new com.roles.usermanagement.modules.alerta.AlertaDetalleResponse(
             a.id,
             a.tipo,
             a.descripcion,

@@ -488,7 +488,8 @@ function table(view, rows) {
 
 async function dashboard() {
     const first = state.me.username;
-    const metrics = await Promise.all(['customers', 'products', 'sales'].map(async key => ({
+    const transportKeys = ['rutas', 'estaciones', 'buses', 'conductores', 'alertas'];
+    const metrics = await Promise.all(transportKeys.map(async key => ({
         key,
         total: can(sections[key].prefix + '_READ')
             ? (await api(sections[key].endpoint + '?size=1')).totalElements
@@ -499,16 +500,16 @@ async function dashboard() {
 
     $('#content').innerHTML = heading(
         `Hola, ${first}.`,
-        'Tu operación, de un vistazo.',
+        'Operación de Transporte Urbano, de un vistazo.',
         `<span class="date-label">${esc(new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }))}</span>`
     ) + `
         <div class="hero">
             <div>
-                <span class="eyebrow">UN ESPACIO PARA TU EQUIPO</span>
-                <h2>La gestión empieza con una buena conexión.</h2>
-                <p>Consulta tus módulos, registra una operación o administra los accesos. Todo desde tu espacio de trabajo.</p>
+                <span class="eyebrow">SISTEMA DE TRANSPORTE URBANO</span>
+                <h2>Monitoreo y control de la red de transporte.</h2>
+                <p>Gestiona rutas, estaciones, flota de buses, conductores y alertas operativas en tiempo real.</p>
             </div>
-            <span class="hero-mark">◈</span>
+            <span class="hero-mark">🚌</span>
         </div>
         <div class="cards">
             ${metrics.map(({ key, total }) => `
@@ -516,7 +517,7 @@ async function dashboard() {
                     <span class="card-icon">${sections[key].icon}</span>
                     <div>
                         <h3>${sections[key].title}</h3>
-                        <p>${total === null ? 'Sin acceso al listado' : 'Registros en tu espacio'}</p>
+                        <p>${total === null ? 'Sin acceso al listado' : 'Registros en el sistema'}</p>
                     </div>
                     <div class="metric">${total ?? '—'}</div>
                     ${visible(key) ? button('go', 'Abrir módulo →', `data-view="${key}"`, 'link-button') : ''}
@@ -525,13 +526,13 @@ async function dashboard() {
         </div>
         <section class="panel">
             <div class="panel-title">
-                <h3>Accesos rápidos</h3>
+                <h3>Accesos rápidos a módulos</h3>
                 <span class="badge">${esc(state.me.role)}</span>
             </div>
             <div class="quick-links">
                 ${links.map(([key, v]) => `
                     <button class="quick-link" data-action="go" data-view="${key}">
-                        <span>${v.icon} &nbsp; ${v.title}<small>Ir a${v.title.toLowerCase()}</small></span>
+                        <span>${v.icon} &nbsp; ${v.title}<small>Ir a ${v.title.toLowerCase()}</small></span>
                         <span>→</span>
                     </button>
                 `).join('') || '<div class="empty">Tu cuenta todavía no tiene permisos para estos módulos.</div>'}

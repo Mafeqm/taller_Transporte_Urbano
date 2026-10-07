@@ -1,4 +1,4 @@
-package com.roles.usermanagement.modulo2.alerta;
+package com.roles.usermanagement.modules.alerta;
 
 import jakarta.validation.constraints.*;
 

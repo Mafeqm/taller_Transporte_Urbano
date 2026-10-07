@@ -1,8 +1,8 @@
-package com.roles.usermanagement.modulo2.alerta;
+package com.roles.usermanagement.modules.alerta;
 
 import java.time.LocalDateTime;
 
-public record AlertaDetalleResponse(
+public record AlertaResponse(
     Long id,
     String tipo,
     String descripcion,
@@ -12,10 +12,8 @@ public record AlertaDetalleResponse(
     String registradoPor,
     Long busId,
     String busPlaca,
-    String busModelo,
     Long rutaId,
     String rutaCodigo,
-    String rutaNombre,
     Long estacionId,
     String estacionNombre
 ) {}

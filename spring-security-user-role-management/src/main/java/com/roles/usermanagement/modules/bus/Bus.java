@@ -1,4 +1,4 @@
-package com.roles.usermanagement.modulo2.bus;
+package com.roles.usermanagement.modules.bus;
 
 import jakarta.persistence.*;
 import lombok.Getter;
