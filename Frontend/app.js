@@ -30,9 +30,11 @@ const state = {
 
 const sections = {
     home: { title: 'Inicio', icon: '⌂' },
-    customers: { title: 'Clientes', icon: '♙', prefix: 'CUSTOMER', endpoint: '/api/customers' },
-    products: { title: 'Productos', icon: '▦', prefix: 'PRODUCT', endpoint: '/api/products' },
-    sales: { title: 'Ventas', icon: '↗', prefix: 'SALE', endpoint: '/api/sales' },
+    buses: { title: 'Buses', icon: '🚌', prefix: 'BUS', endpoint: '/api/buses' },
+    alertas: { title: 'Alertas e Incidentes', icon: '⚠️', prefix: 'ALERTA', endpoint: '/api/alertas' },
+    rutas: { title: 'Rutas', icon: '🛣️', prefix: 'RUTA', endpoint: '/api/rutas' },
+    estaciones: { title: 'Estaciones', icon: '🚉', prefix: 'ESTACION', endpoint: '/api/estaciones' },
+    conductores: { title: 'Conductores', icon: '👨‍✈️', prefix: 'CONDUCTOR', endpoint: '/api/conductores' },
     users: { title: 'Usuarios', icon: '♧' },
     roles: { title: 'Roles', icon: '◈' },
     permissions: { title: 'Permisos', icon: '⚿' }
@@ -243,11 +245,21 @@ async function render() {
     let rows = [];
     let read = false;
 
-    if (['customers', 'products', 'sales'].includes(view)) {
+    if (['customers', 'products', 'sales', 'buses', 'alertas', 'rutas', 'estaciones', 'conductores'].includes(view)) {
         read = can(conf.prefix + '_READ');
 
         if (can(conf.prefix + '_CREATE')) {
-            actions = button('create', '＋ ' + (view === 'sales' ? 'Nueva venta' : view === 'products' ? 'Nuevo producto' : 'Nuevo cliente')) + actions;
+            const createLabel = {
+                buses: 'Nuevo bus',
+                alertas: '🚨 Registrar incidente',
+                rutas: 'Nueva ruta',
+                estaciones: 'Nueva estación',
+                conductores: 'Nuevo conductor',
+                sales: 'Nueva venta',
+                products: 'Nuevo producto',
+                customers: 'Nuevo cliente'
+            }[view] || 'Nuevo registro';
+            actions = button('create', '＋ ' + createLabel) + actions;
         }
         if (!read && view !== 'sales' && can(conf.prefix + '_UPDATE')) {
             actions += button('edit-business-id', 'Editar por ID', '', 'secondary');
@@ -290,6 +302,11 @@ async function render() {
     state.rows = rows;
 
     const intro = {
+        buses: 'Flota de buses del sistema de transporte masivo.',
+        alertas: 'Monitoreo y registro de incidentes, emergencias y alertas operativas.',
+        rutas: 'Trazados y líneas de transporte de la red.',
+        estaciones: 'Puntos de parada y estaciones del sistema.',
+        conductores: 'Personal operativo y conductores asignados.',
         customers: 'Organiza tus relaciones comerciales.',
         products: 'Tu catálogo, precios y existencias al día.',
         sales: 'Cada operación, con su detalle e historial.',
@@ -310,6 +327,61 @@ function table(view, rows) {
     let cells;
     const action = (name, label, i, cls = 'link-button') => button(name, label, `data-index="${i}"`, cls);
 
+    if (view === 'buses') {
+        headers = ['Placa / Modelo', 'Capacidad', 'Estado', 'Acciones'];
+        cells = (r, i) => [
+            `<span class="cell-title">${esc(r.placa)}</span><small class="cell-sub">${esc(r.modelo)}</small>`,
+            `${r.capacidad} pasajeros`,
+            `<span class="badge ${r.activo ? '' : 'off'}">${esc(r.estado || (r.activo ? 'OPERATIVO' : 'INACTIVO'))}</span>`,
+            (r.activo && can('BUS_UPDATE') ? action('edit', 'Editar', i) : '') +
+            (r.activo && can('BUS_DELETE') ? action('deactivate', 'Desactivar', i) : '')
+        ];
+    }
+    if (view === 'alertas') {
+        headers = ['Incidente / Alerta', 'Severidad', 'Bus / Ruta / Estación', 'Registrado por', 'Estado', 'Acciones'];
+        cells = (r, i) => [
+            `<span class="cell-title">${esc(r.tipo)}</span><small class="cell-sub">${esc(r.descripcion)}</small>`,
+            `<span class="badge ${r.severidad === 'ALTA' ? 'off' : ''}">${esc(r.severidad)}</span>`,
+            `<span class="cell-title">Bus: ${esc(r.busPlaca || ('#' + r.busId))}</span><small class="cell-sub">${r.rutaCodigo ? 'Ruta: ' + esc(r.rutaCodigo) : ''} ${r.estacionNombre ? '· Estación: ' + esc(r.estacionNombre) : ''}</small>`,
+            `${esc(r.registradoPor || 'sistema')}<small class="cell-sub">${date(r.fechaHora)}</small>`,
+            badge(r.activo),
+            (r.activo && can('ALERTA_UPDATE') ? action('edit', 'Editar', i) : '') +
+            (r.activo && can('ALERTA_DELETE') ? action('deactivate', 'Resolver/Cerrar', i) : '')
+        ];
+    }
+    if (view === 'rutas') {
+        headers = ['Código', 'Nombre', 'Descripción', 'Estado', 'Acciones'];
+        cells = (r, i) => [
+            `<span class="cell-title">${esc(r.codigo)}</span>`,
+            esc(r.nombre),
+            esc(r.descripcion || '—'),
+            badge(r.activo),
+            (r.activo && can('RUTA_UPDATE') ? action('edit', 'Editar', i) : '') +
+            (r.activo && can('RUTA_DELETE') ? action('deactivate', 'Desactivar', i) : '')
+        ];
+    }
+    if (view === 'estaciones') {
+        headers = ['Estación', 'Ubicación', 'Estado', 'Acciones'];
+        cells = (r, i) => [
+            `<span class="cell-title">${esc(r.nombre)}</span>`,
+            esc(r.ubicacion || '—'),
+            badge(r.activo),
+            (r.activo && can('ESTACION_UPDATE') ? action('edit', 'Editar', i) : '') +
+            (r.activo && can('ESTACION_DELETE') ? action('deactivate', 'Desactivar', i) : '')
+        ];
+    }
+    if (view === 'conductores') {
+        headers = ['Conductor', 'Cédula', 'Licencia', 'Contacto', 'Estado', 'Acciones'];
+        cells = (r, i) => [
+            `<span class="cell-title">${esc(r.nombre)}</span>`,
+            esc(r.cedula),
+            esc(r.licencia),
+            esc(r.telefono || '—'),
+            badge(r.activo),
+            (r.activo && can('CONDUCTOR_UPDATE') ? action('edit', 'Editar', i) : '') +
+            (r.activo && can('CONDUCTOR_DELETE') ? action('deactivate', 'Desactivar', i) : '')
+        ];
+    }
     if (view === 'customers') {
         headers = ['Cliente', 'Contacto', 'Estado', 'Acciones'];
         cells = (r, i) => [
@@ -372,7 +444,7 @@ function table(view, rows) {
         ];
     }
 
-    const paging = ['customers', 'products', 'sales'].includes(view);
+    const paging = ['customers', 'products', 'sales', 'buses', 'alertas', 'rutas', 'estaciones', 'conductores'].includes(view);
 
     return `
         <section class="panel">
@@ -568,6 +640,112 @@ async function entityForm(row, askId = false) {
     row = row || {};
     let body = '';
 
+    if (view === 'buses') {
+        body = field('Placa del bus', 'placa', row.placa || '', 'text', 'required maxlength="10" placeholder="Ej. BUS-101"') +
+            field('Modelo / Marca', 'modelo', row.modelo || '', 'text', 'required maxlength="50" placeholder="Ej. Mercedes Benz 2024"') + `
+            <div class="fields">
+                ${field('Capacidad de pasajeros', 'capacidad', row.capacidad ?? 80, 'number', 'required min="1" max="300" step="1"')}
+                <label>
+                    Estado operativo
+                    <select name="estado">
+                        <option value="OPERATIVO" ${row.estado === 'OPERATIVO' ? 'selected' : ''}>OPERATIVO</option>
+                        <option value="MANTENIMIENTO" ${row.estado === 'MANTENIMIENTO' ? 'selected' : ''}>MANTENIMIENTO</option>
+                        <option value="FUERA_SERVICIO" ${row.estado === 'FUERA_SERVICIO' ? 'selected' : ''}>FUERA_SERVICIO</option>
+                    </select>
+                </label>
+            </div>
+        `;
+    }
+
+    if (view === 'alertas') {
+        let busesList = [];
+        let rutasList = [];
+        let estacionesList = [];
+        try {
+            if (can('BUS_READ')) busesList = (await allPages('/api/buses')).filter(b => b.activo);
+            if (can('RUTA_READ')) rutasList = (await allPages('/api/rutas')).filter(r => r.activo);
+            if (can('ESTACION_READ')) estacionesList = (await allPages('/api/estaciones')).filter(e => e.activo);
+        } catch {}
+
+        body = `
+            <div class="fields">
+                <label>
+                    Tipo de incidente / alerta
+                    <select name="tipo" required>
+                        <option value="FALLA_MECANICA" ${row.tipo === 'FALLA_MECANICA' ? 'selected' : ''}>Falla mecánica</option>
+                        <option value="ACCIDENTE" ${row.tipo === 'ACCIDENTE' ? 'selected' : ''}>Accidente vial</option>
+                        <option value="RETRASO" ${row.tipo === 'RETRASO' ? 'selected' : ''}>Retraso de operación</option>
+                        <option value="EMERGENCIA_MEDICA" ${row.tipo === 'EMERGENCIA_MEDICA' ? 'selected' : ''}>Emergencia médica</option>
+                        <option value="SEGURIDAD" ${row.tipo === 'SEGURIDAD' ? 'selected' : ''}>Incidente de seguridad</option>
+                        <option value="OTRO" ${row.tipo === 'OTRO' ? 'selected' : ''}>Otro incidente</option>
+                    </select>
+                </label>
+                <label>
+                    Nivel de severidad
+                    <select name="severidad" required>
+                        <option value="ALTA" ${row.severidad === 'ALTA' ? 'selected' : ''}>Alta</option>
+                        <option value="MEDIA" ${row.severidad === 'MEDIA' ? 'selected' : ''}>Media</option>
+                        <option value="BAJA" ${row.severidad === 'BAJA' ? 'selected' : ''}>Baja</option>
+                    </select>
+                </label>
+            </div>
+            <label>
+                Bus asociado
+                ${busesList.length ? `
+                    <select name="busId" required>
+                        <option value="">Selecciona un bus</option>
+                        ${busesList.map(b => `<option value="${b.id}" ${row.busId === b.id ? 'selected' : ''}>${esc(b.placa)} · ${esc(b.modelo)} (#${b.id})</option>`).join('')}
+                    </select>
+                ` : `<input name="busId" type="number" required min="1" step="1" value="${row.busId || ''}" placeholder="ID del bus">`}
+            </label>
+            <div class="fields">
+                <label>
+                    Ruta (opcional)
+                    ${rutasList.length ? `
+                        <select name="rutaId">
+                            <option value="">Ninguna / No aplica</option>
+                            ${rutasList.map(r => `<option value="${r.id}" ${row.rutaId === r.id ? 'selected' : ''}>${esc(r.codigo)} - ${esc(r.nombre)}</option>`).join('')}
+                        </select>
+                    ` : `<input name="rutaId" type="number" min="1" step="1" value="${row.rutaId || ''}" placeholder="ID de ruta">`}
+                </label>
+                <label>
+                    Estación (opcional)
+                    ${estacionesList.length ? `
+                        <select name="estacionId">
+                            <option value="">Ninguna / En tránsito</option>
+                            ${estacionesList.map(e => `<option value="${e.id}" ${row.estacionId === e.id ? 'selected' : ''}>${esc(e.nombre)}</option>`).join('')}
+                        </select>
+                    ` : `<input name="estacionId" type="number" min="1" step="1" value="${row.estacionId || ''}" placeholder="ID de estación">`}
+                </label>
+            </div>
+            <label>
+                Descripción detallada del incidente
+                <textarea name="descripcion" required maxlength="500" rows="3" style="width:100%;box-sizing:border-box;padding:8px;border-radius:4px;border:1px solid #ccc;font-family:inherit;">${esc(row.descripcion || '')}</textarea>
+            </label>
+        `;
+    }
+
+    if (view === 'rutas') {
+        body = field('Código de ruta', 'codigo', row.codigo || '', 'text', 'required maxlength="50" placeholder="Ej. R01-NORTE"') +
+            field('Nombre de la ruta', 'nombre', row.nombre || '', 'text', 'required maxlength="150" placeholder="Ej. Portal Norte - Centro"') +
+            field('Descripción (opcional)', 'descripcion', row.descripcion || '', 'text', 'maxlength="250"');
+    }
+
+    if (view === 'estaciones') {
+        body = field('Nombre de estación', 'nombre', row.nombre || '', 'text', 'required maxlength="150" placeholder="Ej. Estación Central"') +
+            field('Ubicación (opcional)', 'ubicacion', row.ubicacion || '', 'text', 'maxlength="200" placeholder="Ej. Av. Caracas con Calle 45"');
+    }
+
+    if (view === 'conductores') {
+        body = field('Nombre completo', 'nombre', row.nombre || '', 'text', 'required maxlength="150"') +
+            field('Cédula de ciudadanía', 'cedula', row.cedula || '', 'text', 'required maxlength="20"') + `
+            <div class="fields">
+                ${field('Licencia de conducción', 'licencia', row.licencia || '', 'text', 'required maxlength="30"')}
+                ${field('Teléfono', 'telefono', row.telefono || '', 'tel', 'maxlength="30"')}
+            </div>
+        `;
+    }
+
     if (view === 'customers') {
         body = field('Nombre', 'name', row.name, 'text', 'required maxlength="150"') + `
             <div class="fields">
@@ -631,6 +809,11 @@ async function entityForm(row, askId = false) {
     }
 
     modal((edit ? 'Editar ' : 'Nuevo ') + ({
+        buses: 'bus',
+        alertas: 'incidente / alerta',
+        rutas: 'ruta',
+        estaciones: 'estación',
+        conductores: 'conductor',
         customers: 'cliente',
         products: 'producto',
         users: 'usuario',
@@ -641,6 +824,14 @@ async function entityForm(row, askId = false) {
         const recordId = askId ? data.recordId : row.id;
         delete data.recordId;
 
+        if (view === 'buses') {
+            data.capacidad = Number(data.capacidad);
+        }
+        if (view === 'alertas') {
+            data.busId = Number(data.busId);
+            if (data.rutaId) data.rutaId = Number(data.rutaId); else delete data.rutaId;
+            if (data.estacionId) data.estacionId = Number(data.estacionId); else delete data.estacionId;
+        }
         if (view === 'products') {
             data.price = Number(data.price);
             data.stock = Number(data.stock);
