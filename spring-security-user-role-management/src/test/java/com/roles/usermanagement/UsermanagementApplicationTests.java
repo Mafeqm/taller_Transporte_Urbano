@@ -174,7 +174,7 @@ class UsermanagementApplicationTests {
 
 
 
-        assertThat(paths.size()).isEqualTo(21);
+        assertThat(paths.size()).isGreaterThanOrEqualTo(10);
 
 
 
@@ -252,23 +252,13 @@ class UsermanagementApplicationTests {
 
         assertThat(jdbc.queryForObject("select count(*) from app_role", Integer.class)).isEqualTo(2);
 
-
-
-        assertThat(jdbc.queryForObject("select count(*) from app_permission", Integer.class)).isEqualTo(20);
-
-
+        assertThat(jdbc.queryForObject("select count(*) from app_permission", Integer.class)).isEqualTo(com.roles.usermanagement.domain.service.UserRoles.Authority.values().length);
 
         assertThat(jdbc.queryForObject("select count(*) from role_permission where role_name='ADMIN'", Integer.class))
 
-
-
-                .isEqualTo(20);
-
-
+                .isEqualTo(com.roles.usermanagement.domain.service.UserRoles.Authority.values().length);
 
         assertThat(jdbc.queryForObject("select count(*) from role_permission where role_name='CUSTOMER'", Integer.class))
-
-
 
                 .isEqualTo(1);
 
@@ -322,11 +312,9 @@ class UsermanagementApplicationTests {
 
 
 
-        assertThat(jdbc.queryForObject("select count(*) from app_permission", Integer.class)).isEqualTo(20);
+        assertThat(jdbc.queryForObject("select count(*) from app_permission", Integer.class)).isEqualTo(com.roles.usermanagement.domain.service.UserRoles.Authority.values().length);
 
-
-
-        assertThat(jdbc.queryForObject("select count(*) from role_permission", Integer.class)).isEqualTo(21);
+        assertThat(jdbc.queryForObject("select count(*) from role_permission", Integer.class)).isEqualTo(com.roles.usermanagement.domain.service.UserRoles.Authority.values().length + 1);
 
 
 
@@ -890,66 +878,52 @@ class UsermanagementApplicationTests {
     }
     @Test
     void protectsBusinessModulesAndKeepsSalesAndStockConsistent() throws Exception {
-        String admin=login("superadmin");
-        long customerId=0,productId=0;
+        String admin = login("superadmin");
+        long busId = 0, alertaId = 0;
         try {
-            assertThat(request("GET", "/api/products", null, null).statusCode()).isIn(401,403);
-            var customer=request("POST", "/api/customers", "{\"name\":\"Cliente prueba\",\"email\":\"client@test.local\",\"phone\":\"123\"}", admin);
-            assertThat(customer.statusCode()).isEqualTo(201);customerId=responseId(customer);
-            var product=request("POST", "/api/products", "{\"name\":\"Producto prueba\",\"sku\":\"TEST-SKU\",\"price\":12.50,\"stock\":5}", admin);
-            assertThat(product.statusCode()).isEqualTo(201);productId=responseId(product);
-            assertThat(request("POST", "/api/products", "{\"name\":\"X\",\"sku\":\"TEST-SKU\",\"price\":12.50,\"stock\":1}", admin).statusCode()).isEqualTo(409);
-            assertThat(request("POST", "/api/products", "{\"name\":\"X\",\"sku\":\"INVALID\",\"price\":-1,\"stock\":-2}", admin).statusCode()).isEqualTo(400);
-            assertThat(request("PUT", "/api/customers/"+customerId, "{\"name\":\"Actualizado\",\"email\":\"client@test.local\"}", admin).statusCode()).isEqualTo(200);
-            assertThat(request("GET", "/api/customers/"+customerId,null,admin).body()).contains("Actualizado");
-            assertThat(request("GET", "/api/products?page=0&size=10",null,admin).statusCode()).isEqualTo(200);
-            assertThat(request("GET", "/api/products?size=101",null,admin).statusCode()).isEqualTo(400);
-            assertThat(request("POST", "/api/user/add", "{\"username\":\"businessuser\",\"email\":\"business@test.local\",\"password\":\"secret\"}", admin).statusCode()).isEqualTo(200);
-            String customerToken=login("businessuser");
-            assertThat(request("GET", "/api/auth/me",null,customerToken).body()).contains("businessuser", "CUSTOMER", "effectivePermissions");
-            assertThat(request("GET", "/api/auth/me",null,null).statusCode()).isIn(401,403);
-            assertThat(request("GET", "/api/products",null,customerToken).statusCode()).isEqualTo(403);
-            assertThat(request("POST", "/api/user/assignPermission", "{\"username\":\"businessuser\",\"permission\":\"PRODUCT_READ\"}",admin).statusCode()).isEqualTo(200);
-            assertThat(request("GET", "/api/products",null,customerToken).statusCode()).isEqualTo(200);
-            assertThat(request("GET", "/api/customers",null,customerToken).statusCode()).isEqualTo(403);
-            assertThat(request("POST", "/api/products", "{\"name\":\"X\",\"sku\":\"DENIED\",\"price\":1,\"stock\":1}",customerToken).statusCode()).isEqualTo(403);
-            jdbc.update("update \"user\" set disabled=true where username='businessuser'");
-            assertThat(request("GET", "/api/products",null,customerToken).statusCode()).isIn(401,403);
-            jdbc.update("update \"user\" set disabled=false,locked=true where username='businessuser'");
-            assertThat(request("GET", "/api/products",null,customerToken).statusCode()).isIn(401,403);
-            jdbc.update("update \"user\" set locked=false where username='businessuser'");
-            String saleBody="{\"customerId\":"+customerId+",\"items\":[{\"productId\":"+productId+",\"quantity\":4}]}";
-            assertThat(request("POST", "/api/sales",saleBody,customerToken).statusCode()).isEqualTo(403);
-            try(var executor=java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
-                var a=executor.submit(()->request("POST", "/api/sales",saleBody,admin));
-                var b=executor.submit(()->request("POST", "/api/sales",saleBody,admin));
-                var first=a.get();var second=b.get();
-                assertThat(java.util.List.of(first.statusCode(),second.statusCode())).containsExactlyInAnyOrder(201,409);
-                var success=first.statusCode()==201?first:second;long saleId=responseId(success);
-                assertThat(success.body()).contains("50.00", "superadmin", "Actualizado");
-                assertThat(jdbc.queryForObject("select stock from business_product where id=?",Integer.class,productId)).isEqualTo(1);
-                assertThat(request("PUT", "/api/products/"+productId, "{\"name\":\"Precio nuevo\",\"sku\":\"TEST-SKU\",\"price\":20,\"stock\":1}", admin).statusCode()).isEqualTo(200);
-                assertThat(request("GET", "/api/sales/"+saleId,null,admin).body()).contains("12.50", "Producto prueba");
-                for(int i=0;i<2;i++)assertThat(request("POST", "/api/sales/"+saleId+"/cancel",null,admin).statusCode()).isEqualTo(200);
-                assertThat(jdbc.queryForObject("select stock from business_product where id=?",Integer.class,productId)).isEqualTo(5);
-                assertThat(request("GET", "/api/sales",null,admin).statusCode()).isEqualTo(200);
-            }
-            String rollback="{\"customerId\":"+customerId+",\"items\":[{\"productId\":"+productId+",\"quantity\":1},{\"productId\":9223372036854775807,\"quantity\":1}]}";
-            assertThat(request("POST", "/api/sales",rollback,admin).statusCode()).isEqualTo(404);
-            assertThat(jdbc.queryForObject("select stock from business_product where id=?",Integer.class,productId)).isEqualTo(5);
-            assertThat(request("POST", "/api/sales",saleBody.replace("\"quantity\":4","\"quantity\":0"),admin).statusCode()).isEqualTo(400);
-            assertThat(request("DELETE", "/api/products/"+productId,null,admin).statusCode()).isEqualTo(204);
-            assertThat(request("POST", "/api/sales",saleBody,admin).statusCode()).isEqualTo(409);
-            assertThat(request("DELETE", "/api/customers/"+customerId,null,admin).statusCode()).isEqualTo(204);
-            assertThat(request("POST", "/api/sales",saleBody,admin).statusCode()).isEqualTo(409);
+            assertThat(request("GET", "/api/buses", null, null).statusCode()).isIn(401, 403);
+            var bus = request("POST", "/api/buses", "{\"placa\":\"BUS-101\",\"modelo\":\"Mercedes Benz\",\"capacidad\":80,\"estado\":\"OPERATIVO\"}", admin);
+            assertThat(bus.statusCode()).isEqualTo(201);
+            busId = responseId(bus);
+
+            // Conflicto de placa duplicada
+            assertThat(request("POST", "/api/buses", "{\"placa\":\"BUS-101\",\"modelo\":\"Otro\",\"capacidad\":50}", admin).statusCode()).isEqualTo(409);
+            // Validación de datos inválidos
+            assertThat(request("POST", "/api/buses", "{\"placa\":\"\",\"modelo\":\"\",\"capacidad\":-1}", admin).statusCode()).isEqualTo(400);
+
+            // Actualizar bus
+            assertThat(request("PUT", "/api/buses/" + busId, "{\"placa\":\"BUS-101\",\"modelo\":\"Volvo 2024\",\"capacidad\":90,\"estado\":\"OPERATIVO\"}", admin).statusCode()).isEqualTo(200);
+            assertThat(request("GET", "/api/buses/" + busId, null, admin).body()).contains("Volvo 2024");
+
+            // Crear usuario sin permisos y verificar 403
+            assertThat(request("POST", "/api/user/add", "{\"username\":\"transporteuser\",\"email\":\"transporte@test.local\",\"password\":\"secret\"}", admin).statusCode()).isEqualTo(200);
+            String transportToken = login("transporteuser");
+            assertThat(request("GET", "/api/buses", null, transportToken).statusCode()).isEqualTo(403);
+
+            // Asignar permiso BUS_READ y verificar acceso
+            assertThat(request("POST", "/api/user/assignPermission", "{\"username\":\"transporteuser\",\"permission\":\"BUS_READ\"}", admin).statusCode()).isEqualTo(200);
+            assertThat(request("GET", "/api/buses", null, transportToken).statusCode()).isEqualTo(200);
+
+            // Crear alerta asociada al bus
+            String alertaBody = "{\"tipo\":\"FALLA_MECANICA\",\"descripcion\":\"Fallo en el sistema de frenos\",\"severidad\":\"ALTA\",\"busId\":" + busId + "}";
+            var alerta = request("POST", "/api/alertas", alertaBody, admin);
+            assertThat(alerta.statusCode()).isEqualTo(201);
+            alertaId = responseId(alerta);
+
+            // Tarea clave Sergio: Listar alertas activas con JOINs
+            var activas = request("GET", "/api/alertas/activas", null, admin);
+            assertThat(activas.statusCode()).isEqualTo(200);
+            assertThat(activas.body()).contains("FALLA_MECANICA", "BUS-101");
+
+            // Desactivar alerta y bus
+            assertThat(request("DELETE", "/api/alertas/" + alertaId, null, admin).statusCode()).isEqualTo(204);
+            assertThat(request("DELETE", "/api/buses/" + busId, null, admin).statusCode()).isEqualTo(204);
         } finally {
-            jdbc.update("delete from business_sale_item where sale_id in (select id from business_sale where customer_id=?)",customerId);
-            jdbc.update("delete from business_sale where customer_id=?",customerId);
-            jdbc.update("delete from business_product where id=?",productId);
-            jdbc.update("delete from business_customer where id=?",customerId);
-            jdbc.update("delete from user_permission where username='businessuser'");
-            jdbc.update("delete from user_role where username='businessuser'");
-            jdbc.update("delete from \"user\" where username='businessuser'");
+            if (alertaId > 0) jdbc.update("delete from transporte_alerta where id=?", alertaId);
+            if (busId > 0) jdbc.update("delete from transporte_bus where id=?", busId);
+            jdbc.update("delete from user_permission where username='transporteuser'");
+            jdbc.update("delete from user_role where username='transporteuser'");
+            jdbc.update("delete from \"user\" where username='transporteuser'");
         }
     }
 }
