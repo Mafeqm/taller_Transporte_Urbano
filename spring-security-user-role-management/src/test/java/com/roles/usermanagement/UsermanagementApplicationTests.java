@@ -877,7 +877,7 @@ class UsermanagementApplicationTests {
         return tools.jackson.databind.json.JsonMapper.builder().build().readTree(response.body()).path("id").asLong();
     }
     @Test
-    void protectsBusinessModulesAndKeepsSalesAndStockConsistent() throws Exception {
+    void protectsTransportModulesAndKeepsBusAlertsConsistent() throws Exception {
         String admin = login("superadmin");
         long busId = 0, alertaId = 0;
         try {

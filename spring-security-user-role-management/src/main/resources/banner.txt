@@ -8,9 +8,9 @@
   NEXO | Gestion y seguridad
   ----------------------------------------------------------
   Usuarios y roles  /  Permisos  /  JWT
-  Clientes          /  Productos /  Ventas
+  Buses y flotas    /  Rutas y paradas  /  Alertas operativas
   ----------------------------------------------------------
-  Plantilla REST con acceso por roles y permisos individuales
+  Sistema de Gestion y Operacion de Transporte Urbano
 
   Spring Boot ${spring-boot.version} | Java ${java.version}
   Perfil: ${spring.profiles.active}

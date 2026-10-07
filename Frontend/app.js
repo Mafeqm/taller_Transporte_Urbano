@@ -245,7 +245,7 @@ async function render() {
     let rows = [];
     let read = false;
 
-    if (['customers', 'products', 'sales', 'buses', 'alertas', 'rutas', 'estaciones', 'conductores'].includes(view)) {
+    if (['buses', 'alertas', 'rutas', 'estaciones', 'conductores'].includes(view)) {
         read = can(conf.prefix + '_READ');
 
         if (can(conf.prefix + '_CREATE')) {
@@ -254,21 +254,15 @@ async function render() {
                 alertas: '🚨 Registrar incidente',
                 rutas: 'Nueva ruta',
                 estaciones: 'Nueva estación',
-                conductores: 'Nuevo conductor',
-                sales: 'Nueva venta',
-                products: 'Nuevo producto',
-                customers: 'Nuevo cliente'
+                conductores: 'Nuevo conductor'
             }[view] || 'Nuevo registro';
             actions = button('create', '＋ ' + createLabel) + actions;
         }
-        if (!read && view !== 'sales' && can(conf.prefix + '_UPDATE')) {
+        if (!read && can(conf.prefix + '_UPDATE')) {
             actions += button('edit-business-id', 'Editar por ID', '', 'secondary');
         }
-        if (!read && view !== 'sales' && can(conf.prefix + '_DELETE')) {
+        if (!read && can(conf.prefix + '_DELETE')) {
             actions += button('deactivate-business-id', 'Desactivar por ID', '', 'secondary');
-        }
-        if (!read && view === 'sales' && can('SALE_CANCEL')) {
-            actions += button('cancel-sale-id', 'Anular por ID', '', 'secondary');
         }
 
         if (read) {
@@ -307,9 +301,6 @@ async function render() {
         rutas: 'Trazados y líneas de transporte de la red.',
         estaciones: 'Puntos de parada y estaciones del sistema.',
         conductores: 'Personal operativo y conductores asignados.',
-        customers: 'Organiza tus relaciones comerciales.',
-        products: 'Tu catálogo, precios y existencias al día.',
-        sales: 'Cada operación, con su detalle e historial.',
         users: 'Cuentas, estados y accesos de tu equipo.',
         roles: 'Un rol por usuario. Capacidades compartidas por equipo.',
         permissions: 'El catálogo de capacidades de tu aplicación.'
@@ -382,39 +373,6 @@ function table(view, rows) {
             (r.activo && can('CONDUCTOR_DELETE') ? action('deactivate', 'Desactivar', i) : '')
         ];
     }
-    if (view === 'customers') {
-        headers = ['Cliente', 'Contacto', 'Estado', 'Acciones'];
-        cells = (r, i) => [
-            `<span class="cell-title">${esc(r.name)}</span><small class="cell-sub">Cliente #${r.id}</small>`,
-            `${esc(r.email)}<small class="cell-sub">${esc(r.phone || 'Sin teléfono')}</small>`,
-            badge(r.active),
-            (r.active && can('CUSTOMER_UPDATE') ? action('edit', 'Editar', i) : '') +
-            (r.active && can('CUSTOMER_DELETE') ? action('deactivate', 'Desactivar', i) : '')
-        ];
-    }
-    if (view === 'products') {
-        headers = ['Producto', 'Precio', 'Existencias', 'Estado', 'Acciones'];
-        cells = (r, i) => [
-            `<span class="cell-title">${esc(r.name)}</span><small class="cell-sub">${esc(r.sku)}</small>`,
-            money(r.price),
-            r.stock,
-            badge(r.active),
-            (r.active && can('PRODUCT_UPDATE') ? action('edit', 'Editar', i) : '') +
-            (r.active && can('PRODUCT_DELETE') ? action('deactivate', 'Desactivar', i) : '')
-        ];
-    }
-    if (view === 'sales') {
-        headers = ['Venta', 'Cliente', 'Fecha', 'Total', 'Estado', 'Acciones'];
-        cells = (r, i) => [
-            `<span class="cell-title">#${r.id}</span><small class="cell-sub">${esc(r.createdBy)}</small>`,
-            esc(r.customerName),
-            date(r.createdAt),
-            money(r.total),
-            `<span class="badge ${r.cancelled ? 'off' : ''}">${r.cancelled ? 'Anulada' : 'Registrada'}</span>`,
-            action('sale-detail', 'Ver detalle', i) +
-            (!r.cancelled && can('SALE_CANCEL') ? action('cancel-sale', 'Anular', i) : '')
-        ];
-    }
     if (view === 'users') {
         headers = ['Usuario', 'Rol', 'Estado', 'Acciones'];
         cells = (r, i) => [
@@ -444,7 +402,7 @@ function table(view, rows) {
         ];
     }
 
-    const paging = ['customers', 'products', 'sales', 'buses', 'alertas', 'rutas', 'estaciones', 'conductores'].includes(view);
+    const paging = ['buses', 'alertas', 'rutas', 'estaciones', 'conductores'].includes(view);
 
     return `
         <section class="panel">
@@ -747,25 +705,6 @@ async function entityForm(row, askId = false) {
         `;
     }
 
-    if (view === 'customers') {
-        body = field('Nombre', 'name', row.name, 'text', 'required maxlength="150"') + `
-            <div class="fields">
-                ${field('Correo', 'email', row.email, 'email', 'required maxlength="200"')}
-                ${field('Teléfono', 'phone', row.phone, 'tel', 'maxlength="30"')}
-            </div>
-        `;
-    }
-
-    if (view === 'products') {
-        body = field('Nombre', 'name', row.name, 'text', 'required maxlength="150"') +
-            field('Código SKU', 'sku', row.sku, 'text', 'required maxlength="50"') + `
-            <div class="fields">
-                ${field('Precio', 'price', row.price ?? '', 'number', 'required min="0.01" step="0.01"')}
-                ${field('Existencias', 'stock', row.stock ?? 0, 'number', 'required min="0" max="2147483647" step="1"')}
-            </div>
-        `;
-    }
-
     if (view === 'users') {
         body = field('Usuario', 'username', row.username, 'text', `required maxlength="50" ${edit ? 'readonly' : ''}`) +
             field('Correo', 'email', row.email, 'email', 'required maxlength="200"') +
@@ -815,8 +754,6 @@ async function entityForm(row, askId = false) {
         rutas: 'ruta',
         estaciones: 'estación',
         conductores: 'conductor',
-        customers: 'cliente',
-        products: 'producto',
         users: 'usuario',
         roles: 'rol',
         permissions: 'permiso'
@@ -832,10 +769,6 @@ async function entityForm(row, askId = false) {
             data.busId = Number(data.busId);
             if (data.rutaId) data.rutaId = Number(data.rutaId); else delete data.rutaId;
             if (data.estacionId) data.estacionId = Number(data.estacionId); else delete data.estacionId;
-        }
-        if (view === 'products') {
-            data.price = Number(data.price);
-            data.stock = Number(data.stock);
         }
         if (view === 'users') {
             data.locked = f.has('locked');
@@ -945,134 +878,6 @@ async function allPages(endpoint) {
     return out;
 }
 
-async function saleForm() {
-    const customers = can('CUSTOMER_READ') ? (await allPages('/api/customers')).filter(r => r.active) : [];
-    const products = can('PRODUCT_READ') ? (await allPages('/api/products')).filter(r => r.active) : [];
-
-    const customer = customers.length
-        ? `
-            <label>
-                Cliente
-                <select name="customerId" required>
-                    <option value="">Selecciona un cliente</option>
-                    ${customers.map(c => `<option value="${c.id}">${esc(c.name)} · #${c.id}</option>`).join('')}
-                </select>
-            </label>
-        `
-        : field('Identificador del cliente', 'customerId', '', 'number', 'required min="1" step="1"');
-
-    modal(
-        'Nueva venta',
-        customer +
-        '<p class="note">El servidor calcula los precios y valida el inventario. Los importes mostrados son una estimación.</p>' +
-        '<label>Productos de la venta</label>' +
-        '<div id="sale-lines"></div>' +
-        button('add-line', '＋ Agregar producto', '', 'secondary') +
-        '<div class="totals"><span>Total estimado</span><b id="sale-total">—</b></div>',
-        async f => {
-            const items = [...$('#sale-lines').children].map(line => ({
-                productId: Number(line.querySelector('[name=productId]').value),
-                quantity: Number(line.querySelector('[name=quantity]').value)
-            }));
-
-            if (!items.length) throw new Error('Agrega al menos un producto.');
-            if (new Set(items.map(i => i.productId)).size !== items.length) {
-                throw new Error('No repitas productos: consolida su cantidad.');
-            }
-
-            await api('/api/sales', {
-                method: 'POST',
-                body: {
-                    customerId: Number(f.get('customerId')),
-                    items
-                }
-            });
-        },
-        'Registrar venta'
-    );
-
-    state.cache.saleProducts = products;
-    addSaleLine();
-}
-
-function addSaleLine() {
-    const ps = state.cache.saleProducts || [];
-    const line = document.createElement('div');
-    line.className = 'sale-line';
-
-    line.innerHTML = (
-        ps.length
-            ? `
-                <select name="productId" aria-label="Producto" required>
-                    <option value="">Selecciona un producto</option>
-                    ${ps.map(p => `<option value="${p.id}">${esc(p.name)} · ${money(p.price)} · stock ${p.stock}</option>`).join('')}
-                </select>
-            `
-            : '<input name="productId" aria-label="ID de producto" placeholder="ID de producto" type="number" required min="1" step="1">'
-    ) +
-    '<input name="quantity" aria-label="Cantidad" type="number" value="1" min="1" max="1000000" step="1" required>' +
-    button('remove-line', '×', '', 'icon-button');
-
-    $('#sale-lines').append(line);
-    saleEstimate();
-}
-
-function saleEstimate() {
-    if (!$('#sale-total')) return;
-    let total = 0;
-    let unknown = false;
-
-    for (const line of $('#sale-lines').children) {
-        const p = (state.cache.saleProducts || []).find(p => p.id === Number(line.querySelector('[name=productId]').value));
-        if (!p) {
-            unknown = true;
-            continue;
-        }
-        total += Math.round(Number(p.price) * 100) * Number(line.querySelector('[name=quantity]').value);
-    }
-
-    $('#sale-total').textContent = unknown ? 'Por calcular' : money(total/100);
-}
-
-async function saleDetails(row) {
-    const d = await api('/api/sales/' + row.id);
-    modal(
-        'Venta #' + d.id,
-        `
-            <div class="info-row"><span>Cliente</span><b>${esc(d.customerName)}</b></div>
-            <div class="info-row"><span>Registrada por</span><b>${esc(d.createdBy)}</b></div>
-            <div class="info-row"><span>Fecha</span><b>${esc(date(d.createdAt))}</b></div>
-            <div class="info-row"><span>Estado</span><b>${d.cancelled ? 'Anulada' : 'Registrada'}</b></div>
-            ${d.cancelled ? `<div class="info-row"><span>Anulación</span><b>${esc(d.cancelledBy)} ·${esc(date(d.cancelledAt))}</b></div>` : ''}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Cantidad</th>
-                            <th>Precio</th>
-                            <th>Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${d.items.map(i => `
-                            <tr>
-                                <td>${esc(i.productName)}</td>
-                                <td>${i.quantity}</td>
-                                <td>${money(i.unitPrice)}</td>
-                                <td>${money(i.subtotal)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-            <div class="totals">
-                <span>Total registrado</span><b>${money(d.total)}</b>
-            </div>
-        `,
-        null
-    );
-}
 
 async function handle(action, element) {
     const row = state.rows[Number(element.dataset.index)];
@@ -1092,7 +897,7 @@ async function handle(action, element) {
             return navigate(state.view, state.page + 1);
 
         case 'create':
-            return state.view === 'sales' ? saleForm() : entityForm();
+            return entityForm();
 
         case 'edit':
             return entityForm(row);
@@ -1107,16 +912,6 @@ async function handle(action, element) {
                 '<p class="note">El registro quedará inactivo. Se conservará el historial.</p>',
                 f => api(sections[state.view].endpoint + '/' + path(f.get('id')), { method: 'DELETE' }),
                 'Desactivar'
-            );
-            return;
-
-        case 'cancel-sale-id':
-            modal(
-                'Anular venta',
-                field('Identificador de venta', 'id', '', 'number', 'required min="1" step="1"') +
-                '<p class="note">Anular repone las existencias y conserva el detalle original.</p>',
-                f => api('/api/sales/' + path(f.get('id')) + '/cancel', { method: 'POST' }),
-                'Anular venta'
             );
             return;
 
@@ -1199,26 +994,6 @@ async function handle(action, element) {
         case 'role-permission':
             return rolePermissions(row);
 
-        case 'cancel-sale':
-            return confirmAction(
-                'Anular venta',
-                `¿Anular la venta #${row.id}? Sus existencias regresarán al inventario.`,
-                () => api('/api/sales/' + row.id + '/cancel', { method: 'POST' })
-            );
-
-        case 'sale-detail':
-            return saleDetails(row);
-
-        case 'add-line':
-            if ($('#sale-lines').children.length >= 100) {
-                throw new Error('Máximo 100 productos por venta.');
-            }
-            return addSaleLine();
-
-        case 'remove-line':
-            element.closest('.sale-line').remove();
-            return saleEstimate();
-
         case 'revoke-user-permission':
             return confirmAction(
                 'Retirar permiso individual',
@@ -1244,7 +1019,6 @@ async function onAction(e) {
 
 $('#content').addEventListener('click', onAction);
 $('#modal-body').addEventListener('click', onAction);
-$('#modal-body').addEventListener('input', saleEstimate);
 
 $('#content').addEventListener('input', e => {
     if (e.target.id !== 'filter') return;
